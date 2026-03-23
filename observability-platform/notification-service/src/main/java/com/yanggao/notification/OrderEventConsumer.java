@@ -2,7 +2,8 @@ package com.yanggao.notification;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -10,12 +11,22 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class OrderEventConsumer {
 
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
+    private final Counter notificationsSentCounter;
+
+    public OrderEventConsumer(NotificationRepository notificationRepository,
+                              ObjectMapper objectMapper, MeterRegistry registry) {
+        this.notificationRepository = notificationRepository;
+        this.objectMapper = objectMapper;
+        this.notificationsSentCounter = Counter.builder("notifications.sent.total")
+                .tag("channel", "EMAIL")
+                .description("Total notifications sent")
+                .register(registry);
+    }
 
     @KafkaListener(topics = "orders.created")
     public void onOrderCreated(String event) {
@@ -39,6 +50,7 @@ public class OrderEventConsumer {
             notification.setChannel("EMAIL");
 
             notificationRepository.save(notification);
+            notificationsSentCounter.increment();
             log.info("Notification sent: orderId={} eventId={}", notification.getOrderId(), eventId);
         } catch (Exception e) {
             log.error("Failed to process OrderCreatedEvent", e);

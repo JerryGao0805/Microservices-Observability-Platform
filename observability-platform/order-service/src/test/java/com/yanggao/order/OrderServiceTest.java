@@ -1,8 +1,9 @@
 package com.yanggao.order;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,8 +24,13 @@ class OrderServiceTest {
     RiskClient riskClient;
     @Mock
     OrderEventPublisher eventPublisher;
-    @InjectMocks
+
     OrderService orderService;
+
+    @BeforeEach
+    void setUp() {
+        orderService = new OrderService(orderRepository, riskClient, eventPublisher, new SimpleMeterRegistry());
+    }
 
     @Test
     void createOrder_approved() {

@@ -1,5 +1,8 @@
 package com.yanggao.risk;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,16 @@ import java.util.concurrent.ThreadLocalRandom;
 @Tag(name = "Risk")
 @Slf4j
 public class RiskController {
+
+    private final MeterRegistry registry;
+    private final DistributionSummary riskScoreDistribution;
+
+    public RiskController(MeterRegistry registry) {
+        this.registry = registry;
+        this.riskScoreDistribution = DistributionSummary.builder("risk.score.distribution")
+                .description("Distribution of risk scores")
+                .register(registry);
+    }
 
     public record RiskEvaluationRequest(BigDecimal amount, String currency) {}
 
@@ -52,6 +65,13 @@ public class RiskController {
 
         log.info("Risk evaluated: amount={} currency={} score={} level={}",
                 request.amount(), request.currency(), score, level);
+
+        Counter.builder("risk.evaluations.total")
+                .tag("level", level)
+                .register(registry)
+                .increment();
+        riskScoreDistribution.record(score);
+
         return new RiskEvaluationResponse(score, level);
     }
 }

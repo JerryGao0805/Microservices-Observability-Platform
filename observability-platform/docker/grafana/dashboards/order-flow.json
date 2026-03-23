@@ -1,0 +1,90 @@
+{
+  "title": "Order Flow",
+  "uid": "order-flow",
+  "tags": ["observability", "orders"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Order Processing Duration (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(orders_processing_duration_seconds_bucket[1m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(orders_processing_duration_seconds_bucket[1m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(orders_processing_duration_seconds_bucket[1m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "title": "Orders Created Total",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "orders_total",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "title": "Risk Score Distribution (avg)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "risk_score_distribution_sum / risk_score_distribution_count",
+          "legendFormat": "avg score"
+        }
+      ]
+    },
+    {
+      "title": "Notifications Sent Total",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "notifications_sent_total",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "title": "Risk Evaluation Breakdown",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "risk_evaluations_total",
+          "legendFormat": "{{ level }}"
+        }
+      ]
+    },
+    {
+      "title": "Order Service HTTP Errors (5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"order-service\", status=~\"5..\"}[1m]) * 60",
+          "legendFormat": "{{ status }} {{ uri }}"
+        }
+      ]
+    }
+  ],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s"
+}

@@ -1,0 +1,35 @@
+{
+  "title": "Trace Explorer",
+  "uid": "trace-explorer",
+  "tags": ["observability", "tracing"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Recent Traces",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "uid": "tempo" },
+      "targets": [
+        {
+          "queryType": "nativeSearch",
+          "serviceName": "order-service",
+          "limit": 20
+        }
+      ]
+    },
+    {
+      "title": "Service Logs (Loki)",
+      "type": "logs",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{service_name=~\"order-service|risk-service|notification-service\"} | json",
+          "legendFormat": ""
+        }
+      ]
+    }
+  ],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s"
+}

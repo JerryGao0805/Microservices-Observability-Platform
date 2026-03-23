@@ -1,0 +1,89 @@
+{
+  "title": "System Overview",
+  "uid": "system-overview",
+  "tags": ["observability"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Orders Created (rate/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(orders_total[1m]) * 60",
+          "legendFormat": "orders/min"
+        }
+      ]
+    },
+    {
+      "title": "Risk Evaluations by Level (rate/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(risk_evaluations_total[1m]) * 60",
+          "legendFormat": "{{ level }}"
+        }
+      ]
+    },
+    {
+      "title": "Notifications Sent (rate/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(notifications_sent_total[1m]) * 60",
+          "legendFormat": "{{ channel }}"
+        }
+      ]
+    },
+    {
+      "title": "JVM Memory Used",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+          "legendFormat": "{{ job }} heap"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Server Request Duration (p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket[1m]))",
+          "legendFormat": "{{ job }} {{ uri }} p99"
+        }
+      ]
+    },
+    {
+      "title": "Service Up Status",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up",
+          "legendFormat": "{{ job }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }
+          ]
+        }
+      }
+    }
+  ],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s"
+}

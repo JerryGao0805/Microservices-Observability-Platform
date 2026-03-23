@@ -1,0 +1,58 @@
+{
+  "title": "Kafka Consumer Lag",
+  "uid": "kafka-consumer",
+  "tags": ["observability", "kafka"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Consumer Lag by Partition",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kafka_consumer_fetch_manager_records_lag",
+          "legendFormat": "{{ topic }} partition={{ partition }}"
+        }
+      ]
+    },
+    {
+      "title": "Consumer Records Consumed (rate/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(kafka_consumer_fetch_manager_records_consumed_total[1m]) * 60",
+          "legendFormat": "{{ topic }}"
+        }
+      ]
+    },
+    {
+      "title": "Consumer Fetch Latency (avg)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kafka_consumer_fetch_manager_fetch_latency_avg",
+          "legendFormat": "{{ client_id }}"
+        }
+      ]
+    },
+    {
+      "title": "Consumer Group Offset",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kafka_consumer_coordinator_commit_total",
+          "legendFormat": "commits {{ client_id }}"
+        }
+      ]
+    }
+  ],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s"
+}
