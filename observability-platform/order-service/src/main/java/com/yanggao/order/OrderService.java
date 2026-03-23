@@ -2,6 +2,8 @@ package com.yanggao.order;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,5 +38,9 @@ public class OrderService {
 
     public Order getOrder(UUID id) {
         return orderRepository.findById(id).orElse(null);
+    }
+
+    public Page<OrderResponse> listOrders(Pageable pageable) {
+        return orderRepository.findAll(pageable).map(OrderResponse::from);
     }
 }

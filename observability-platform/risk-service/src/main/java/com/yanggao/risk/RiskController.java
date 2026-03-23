@@ -1,5 +1,7 @@
 package com.yanggao.risk;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -7,9 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/api/risk")
+@Tag(name = "Risk")
 @Slf4j
 public class RiskController {
 
@@ -18,7 +22,20 @@ public class RiskController {
     public record RiskEvaluationResponse(int riskScore, String riskLevel) {}
 
     @PostMapping("/evaluate")
-    public RiskEvaluationResponse evaluate(@RequestBody RiskEvaluationRequest request) {
+    @Operation(summary = "Evaluate risk for a payment order")
+    public RiskEvaluationResponse evaluate(@RequestBody RiskEvaluationRequest request) throws InterruptedException {
+        // 20% chance of 500ms delay
+        if (ThreadLocalRandom.current().nextDouble() < 0.2) {
+            log.info("Simulating slow response for amount={}", request.amount());
+            Thread.sleep(500);
+        }
+
+        // 5% chance of error
+        if (ThreadLocalRandom.current().nextDouble() < 0.05) {
+            log.warn("Simulating failure for amount={}", request.amount());
+            throw new RuntimeException("Simulated risk service failure");
+        }
+
         int score;
         String level;
 

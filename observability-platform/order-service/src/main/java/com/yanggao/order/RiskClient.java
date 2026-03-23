@@ -1,5 +1,6 @@
 package com.yanggao.order;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ public class RiskClient {
         this.restClient = RestClient.builder().baseUrl(riskServiceUrl).build();
     }
 
+    @CircuitBreaker(name = "riskService", fallbackMethod = "evaluateFallback")
     public RiskEvaluationResponse evaluate(BigDecimal amount, String currency) {
         log.info("Calling risk service for amount={} currency={}", amount, currency);
         return restClient.post()
@@ -24,6 +26,11 @@ public class RiskClient {
                 .body(new RiskEvaluationRequest(amount, currency))
                 .retrieve()
                 .body(RiskEvaluationResponse.class);
+    }
+
+    private RiskEvaluationResponse evaluateFallback(BigDecimal amount, String currency, Exception e) {
+        log.warn("Risk service unavailable: {}", e.getMessage());
+        throw new ServiceUnavailableException("Risk service is currently unavailable");
     }
 
     public record RiskEvaluationRequest(BigDecimal amount, String currency) {}
