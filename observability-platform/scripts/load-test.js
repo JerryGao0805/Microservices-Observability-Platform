@@ -1,6 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
 
 const errorRate = new Rate('errors');
 const orderDuration = new Trend('order_creation_duration');
@@ -58,9 +59,4 @@ export function handleSummary(data) {
   return {
     stdout: textSummary(data, { indent: ' ', enableColors: true }),
   };
-}
-
-function textSummary(data, opts) {
-  // k6 built-in summary is used by default
-  return '';
 }

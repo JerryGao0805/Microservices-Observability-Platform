@@ -1,34 +1,39 @@
 services:
   postgres-orders:
     image: postgres:16
+    restart: always
     environment:
       POSTGRES_DB: orders_db
-      POSTGRES_USER: orders
-      POSTGRES_PASSWORD: orders
+      POSTGRES_USER: ${DB_ORDERS_USER:-orders}
+      POSTGRES_PASSWORD: ${DB_ORDERS_PASSWORD}
     volumes:
       - pgdata-orders:/var/lib/postgresql/data
+    mem_limit: 384m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orders -d orders_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ORDERS_USER:-orders} -d orders_db"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   postgres-notifications:
     image: postgres:16
+    restart: always
     environment:
       POSTGRES_DB: notifications_db
-      POSTGRES_USER: notifications
-      POSTGRES_PASSWORD: notifications
+      POSTGRES_USER: ${DB_NOTIFICATIONS_USER:-notifications}
+      POSTGRES_PASSWORD: ${DB_NOTIFICATIONS_PASSWORD}
     volumes:
       - pgdata-notifications:/var/lib/postgresql/data
+    mem_limit: 384m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_NOTIFICATIONS_USER:-notifications} -d notifications_db"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   kafka:
     image: apache/kafka:3.7.0
+    restart: always
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -42,6 +47,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    mem_limit: 768m
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
       interval: 10s
@@ -52,52 +58,64 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.104.0
+    restart: always
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    mem_limit: 256m
 
   tempo:
     image: grafana/tempo:2.5.0
+    restart: always
     command: ["-config.file=/etc/tempo-config.yaml"]
     volumes:
       - ./tempo-config.yaml:/etc/tempo-config.yaml
-      - tempo-data:/tmp/tempo
+      - tempo-data:/var/tempo
+    mem_limit: 512m
 
   prometheus:
     image: prom/prometheus:v2.53.0
+    restart: always
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
+    mem_limit: 512m
 
   loki:
     image: grafana/loki:3.1.0
+    restart: always
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     volumes:
       - ./loki-config.yaml:/etc/loki/loki-config.yaml
       - loki-data:/loki
+    mem_limit: 512m
 
   promtail:
     image: grafana/promtail:3.1.0
+    restart: always
     command: ["-config.file=/etc/promtail/promtail-config.yaml"]
     volumes:
       - ./promtail-config.yaml:/etc/promtail/promtail-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-data:/data
+    mem_limit: 128m
     depends_on:
       - loki
 
   grafana:
     image: grafana/grafana:11.1.0
+    restart: always
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     ports:
       - "3000:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
+    mem_limit: 256m
     depends_on:
       - prometheus
       - tempo
@@ -106,13 +124,14 @@ services:
   # --- Application Services (ECR images) ---
 
   order-service:
-    image: ${ECR_URI}/observability-platform/order-service:latest
+    image: ${ECR_URI}/observability-platform/order-service:${VERSION:-latest}
+    restart: always
     environment:
       DB_HOST: postgres-orders
       DB_PORT: 5432
       DB_NAME: orders_db
-      DB_USER: orders
-      DB_PASSWORD: orders
+      DB_USER: ${DB_ORDERS_USER:-orders}
+      DB_PASSWORD: ${DB_ORDERS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       RISK_SERVICE_URL: http://risk-service:8082
       JAVA_TOOL_OPTIONS: "-javaagent:/otel-agent/opentelemetry-javaagent.jar"
@@ -123,6 +142,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       postgres-orders:
         condition: service_healthy
@@ -134,8 +154,10 @@ services:
         condition: service_started
 
   risk-service:
-    image: ${ECR_URI}/observability-platform/risk-service:latest
+    image: ${ECR_URI}/observability-platform/risk-service:${VERSION:-latest}
+    restart: always
     environment:
+      CHAOS_ENABLED: "false"
       JAVA_TOOL_OPTIONS: "-javaagent:/otel-agent/opentelemetry-javaagent.jar"
       OTEL_SERVICE_NAME: risk-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -144,18 +166,20 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       otel-collector:
         condition: service_started
 
   notification-service:
-    image: ${ECR_URI}/observability-platform/notification-service:latest
+    image: ${ECR_URI}/observability-platform/notification-service:${VERSION:-latest}
+    restart: always
     environment:
       DB_HOST: postgres-notifications
       DB_PORT: 5432
       DB_NAME: notifications_db
-      DB_USER: notifications
-      DB_PASSWORD: notifications
+      DB_USER: ${DB_NOTIFICATIONS_USER:-notifications}
+      DB_PASSWORD: ${DB_NOTIFICATIONS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JAVA_TOOL_OPTIONS: "-javaagent:/otel-agent/opentelemetry-javaagent.jar"
       OTEL_SERVICE_NAME: notification-service
@@ -165,6 +189,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       postgres-notifications:
         condition: service_healthy
@@ -179,3 +204,4 @@ volumes:
   tempo-data:
   prometheus-data:
   loki-data:
+  promtail-data:

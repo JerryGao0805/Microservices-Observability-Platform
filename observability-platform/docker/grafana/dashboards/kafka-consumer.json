@@ -1,4 +1,6 @@
 {
+  "id": null,
+  "schemaVersion": 39,
   "title": "Kafka Consumer Lag",
   "uid": "kafka-consumer",
   "tags": ["observability", "kafka"],

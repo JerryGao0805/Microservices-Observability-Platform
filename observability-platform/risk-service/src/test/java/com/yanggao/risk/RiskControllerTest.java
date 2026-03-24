@@ -77,4 +77,46 @@ class RiskControllerTest {
                 .andExpect(jsonPath("$.riskScore").value(50))
                 .andExpect(jsonPath("$.riskLevel").value("MEDIUM"));
     }
+
+    @Test
+    void evaluate_nullAmount_returns422() throws Exception {
+        mockMvc.perform(post("/api/risk/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currency":"USD"}
+                                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error").value("Validation failed"));
+    }
+
+    @Test
+    void evaluate_negativeAmount_returns422() throws Exception {
+        mockMvc.perform(post("/api/risk/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":-100,"currency":"USD"}
+                                """))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void evaluate_zeroAmount_returns422() throws Exception {
+        mockMvc.perform(post("/api/risk/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":0,"currency":"USD"}
+                                """))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void evaluate_noCurrency_stillWorks() throws Exception {
+        mockMvc.perform(post("/api/risk/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":50}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.riskScore").value(10));
+    }
 }

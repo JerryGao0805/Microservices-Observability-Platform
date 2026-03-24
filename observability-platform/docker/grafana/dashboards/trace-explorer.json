@@ -1,4 +1,6 @@
 {
+  "id": null,
+  "schemaVersion": 39,
   "title": "Trace Explorer",
   "uid": "trace-explorer",
   "tags": ["observability", "tracing"],

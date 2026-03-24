@@ -5,6 +5,9 @@ spring:
   application:
     name: risk-service
 
+chaos:
+  enabled: false
+
 management:
   endpoints:
     web:

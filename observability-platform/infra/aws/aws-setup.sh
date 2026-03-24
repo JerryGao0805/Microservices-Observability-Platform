@@ -103,26 +103,30 @@ aws iam create-role \
   --assume-role-policy-document "$TRUST_POLICY" \
   2>/dev/null || echo "  Role already exists"
 
-POLICY='{
-  "Version": "2012-10-17",
-  "Statement": [
+POLICY="{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
     {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchGetImage",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchCheckLayerAvailability"
-      ],
-      "Resource": "*"
+      \"Effect\": \"Allow\",
+      \"Action\": \"ecr:GetAuthorizationToken\",
+      \"Resource\": \"*\"
     },
     {
-      "Effect": "Allow",
-      "Action": "cloudwatch:PutMetricData",
-      "Resource": "*"
+      \"Effect\": \"Allow\",
+      \"Action\": [
+        \"ecr:BatchGetImage\",
+        \"ecr:GetDownloadUrlForLayer\",
+        \"ecr:BatchCheckLayerAvailability\"
+      ],
+      \"Resource\": \"arn:aws:ecr:$REGION:$ACCOUNT_ID:repository/$PROJECT/*\"
+    },
+    {
+      \"Effect\": \"Allow\",
+      \"Action\": \"cloudwatch:PutMetricData\",
+      \"Resource\": \"*\"
     }
   ]
-}'
+}"
 
 aws iam put-role-policy \
   --role-name "$PROJECT-ec2-role" \

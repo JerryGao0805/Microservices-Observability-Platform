@@ -13,13 +13,13 @@ public record OrderResponse(
         Integer riskScore,
         Instant createdAt
 ) {
-    static OrderResponse from(Order order) {
+    public static OrderResponse from(Order order) {
         return new OrderResponse(
                 order.getId(),
                 order.getUserId(),
                 order.getAmount(),
                 order.getCurrency(),
-                order.getStatus(),
+                order.getStatus() != null ? order.getStatus().name() : null,
                 order.getRiskScore(),
                 order.getCreatedAt()
         );

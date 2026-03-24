@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -23,7 +24,7 @@ class OrderServiceTest {
     @Mock
     RiskClient riskClient;
     @Mock
-    OrderEventPublisher eventPublisher;
+    ApplicationEventPublisher eventPublisher;
 
     OrderService orderService;
 
@@ -44,9 +45,9 @@ class OrderServiceTest {
 
         var result = orderService.createOrder(new CreateOrderRequest("user1", new BigDecimal("500"), "USD"));
 
-        assertThat(result.getStatus()).isEqualTo("APPROVED");
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.APPROVED);
         assertThat(result.getRiskScore()).isEqualTo(50);
-        verify(eventPublisher).publishOrderCreated(any());
+        verify(eventPublisher).publishEvent(any(OrderCreatedEvent.class));
     }
 
     @Test
@@ -61,7 +62,7 @@ class OrderServiceTest {
 
         var result = orderService.createOrder(new CreateOrderRequest("user1", new BigDecimal("2000"), "USD"));
 
-        assertThat(result.getStatus()).isEqualTo("REJECTED");
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(result.getRiskScore()).isEqualTo(90);
     }
 
@@ -72,7 +73,7 @@ class OrderServiceTest {
         order.setUserId("user1");
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
-        assertThat(orderService.getOrder(order.getId())).isEqualTo(order);
+        assertThat(orderService.getOrder(order.getId())).contains(order);
     }
 
     @Test
@@ -80,6 +81,6 @@ class OrderServiceTest {
         var id = UUID.randomUUID();
         when(orderRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThat(orderService.getOrder(id)).isNull();
+        assertThat(orderService.getOrder(id)).isEmpty();
     }
 }

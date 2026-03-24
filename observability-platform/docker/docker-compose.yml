@@ -1,14 +1,16 @@
 services:
   postgres-orders:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: orders_db
       POSTGRES_USER: orders
       POSTGRES_PASSWORD: orders
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata-orders:/var/lib/postgresql/data
+    mem_limit: 384m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orders -d orders_db"]
       interval: 5s
@@ -17,14 +19,16 @@ services:
 
   postgres-notifications:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: notifications_db
       POSTGRES_USER: notifications
       POSTGRES_PASSWORD: notifications
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata-notifications:/var/lib/postgresql/data
+    mem_limit: 384m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U notifications -d notifications_db"]
       interval: 5s
@@ -33,8 +37,9 @@ services:
 
   kafka:
     image: apache/kafka:3.7.0
+    restart: unless-stopped
     ports:
-      - "9094:9094"
+      - "127.0.0.1:9094:9094"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -48,6 +53,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    mem_limit: 768m
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
       interval: 10s
@@ -58,60 +64,98 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.104.0
+    restart: unless-stopped
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "4317:4317"
+      - "127.0.0.1:4317:4317"
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   tempo:
     image: grafana/tempo:2.5.0
+    restart: unless-stopped
     command: ["-config.file=/etc/tempo-config.yaml"]
     volumes:
       - ./tempo-config.yaml:/etc/tempo-config.yaml
-      - tempo-data:/tmp/tempo
+      - tempo-data:/var/tempo
     ports:
-      - "3200:3200"
+      - "127.0.0.1:3200:3200"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:v2.53.0
+    restart: unless-stopped
     command: ["--config.file=/etc/prometheus/prometheus.yml"]
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   loki:
     image: grafana/loki:3.1.0
+    restart: unless-stopped
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     volumes:
       - ./loki-config.yaml:/etc/loki/loki-config.yaml
       - loki-data:/loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   promtail:
     image: grafana/promtail:3.1.0
+    restart: unless-stopped
     command: ["-config.file=/etc/promtail/promtail-config.yaml"]
     volumes:
       - ./promtail-config.yaml:/etc/promtail/promtail-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-data:/data
+    mem_limit: 128m
     depends_on:
       - loki
 
   grafana:
     image: grafana/grafana:11.1.0
+    restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     ports:
       - "3000:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       - prometheus
       - tempo
@@ -121,6 +165,7 @@ services:
 
   order-service:
     image: order-service
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -139,6 +184,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       postgres-orders:
         condition: service_healthy
@@ -151,9 +197,11 @@ services:
 
   risk-service:
     image: risk-service
+    restart: unless-stopped
     ports:
       - "8082:8082"
     environment:
+      CHAOS_ENABLED: "true"
       JAVA_TOOL_OPTIONS: "-javaagent:/otel-agent/opentelemetry-javaagent.jar"
       OTEL_SERVICE_NAME: risk-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -162,12 +210,14 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       otel-collector:
         condition: service_started
 
   notification-service:
     image: notification-service
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
@@ -185,6 +235,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     volumes:
       - ./otel-agent:/otel-agent:ro
+    mem_limit: 512m
     depends_on:
       postgres-notifications:
         condition: service_healthy
@@ -199,3 +250,4 @@ volumes:
   tempo-data:
   prometheus-data:
   loki-data:
+  promtail-data:

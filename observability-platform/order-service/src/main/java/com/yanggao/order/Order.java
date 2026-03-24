@@ -12,7 +12,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "orders")
 @Getter
-@Setter
 @NoArgsConstructor
 public class Order {
 
@@ -20,29 +19,44 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Setter
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    @Setter
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Setter
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Setter
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status;
+    private OrderStatus status;
 
+    @Setter
     @Column(name = "risk_score")
     private Integer riskScore;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // For test use only
+    void setId(UUID id) {
+        this.id = id;
+    }
+
+    void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();
         if (this.status == null) {
-            this.status = "PENDING";
+            this.status = OrderStatus.PENDING;
         }
     }
 }

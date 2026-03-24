@@ -1,5 +1,6 @@
 package com.yanggao.order;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -44,6 +45,11 @@ class OrderIntegrationTest {
     @Autowired
     OrderRepository orderRepository;
 
+    @BeforeEach
+    void cleanUp() {
+        orderRepository.deleteAll();
+    }
+
     @Test
     void fullOrderFlow() throws Exception {
         when(riskClient.evaluate(any(), any()))
@@ -59,8 +65,8 @@ class OrderIntegrationTest {
                 .andExpect(jsonPath("$.riskScore").value(50));
 
         var orders = orderRepository.findAll();
-        assertThat(orders).isNotEmpty();
-        assertThat(orders.stream().anyMatch(o -> "integ-user".equals(o.getUserId()))).isTrue();
+        assertThat(orders).hasSize(1);
+        assertThat(orders.getFirst().getUserId()).isEqualTo("integ-user");
     }
 
     @Test
@@ -97,5 +103,20 @@ class OrderIntegrationTest {
                                 """))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error").value("Risk service is currently unavailable"));
+    }
+
+    @Test
+    void createOrder_rejected() throws Exception {
+        when(riskClient.evaluate(any(), any()))
+                .thenReturn(new RiskClient.RiskEvaluationResponse(90, "HIGH"));
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId":"reject-user","amount":2000,"currency":"USD"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.riskScore").value(90));
     }
 }
